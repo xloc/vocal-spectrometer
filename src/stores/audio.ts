@@ -12,6 +12,10 @@ export const useAudioStore = defineStore("audio", () => {
     return analyser;
   }
 
+  function getSampleRate() {
+    return ctx?.sampleRate ?? 0;
+  }
+
   async function start() {
     stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     ctx = new AudioContext();
@@ -30,5 +34,5 @@ export const useAudioStore = defineStore("audio", () => {
     running.value = false;
   }
 
-  return { running, getAnalyser, start, stop };
+  return { running, getAnalyser, getSampleRate, start, stop };
 });

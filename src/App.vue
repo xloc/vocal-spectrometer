@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from "vue";
+import { PitchDetector } from "pitchy";
 import { useAudioStore } from "./stores/audio";
 
 const audio = useAudioStore();
@@ -21,26 +22,29 @@ onUnmounted(() => window.removeEventListener("resize", resize));
 
 function draw() {
   const analyser = audio.getAnalyser();
+  const sampleRate = audio.getSampleRate();
   const el = canvas.value;
-  if (!analyser || !el) return;
+  if (!analyser || !el || !sampleRate) return;
 
-  const ctx = el.getContext("2d")!;
-  const data = new Uint8Array(analyser.frequencyBinCount);
+  const ctx2d = el.getContext("2d")!;
+  const freqData = new Uint8Array(analyser.frequencyBinCount);
+  const timeData = new Float32Array(analyser.fftSize);
+  const detector = PitchDetector.forFloat32Array(analyser.fftSize);
 
   const loop = () => {
     const { width, height } = el;
-    const col = ctx.createImageData(1, height);
+    const col = ctx2d.createImageData(1, height);
 
-    analyser.getByteFrequencyData(data);
+    analyser.getByteFrequencyData(freqData);
 
     // Shift existing image left by 1px
-    const img = ctx.getImageData(1, 0, width - 1, height);
-    ctx.putImageData(img, 0, 0);
+    const img = ctx2d.getImageData(1, 0, width - 1, height);
+    ctx2d.putImageData(img, 0, 0);
 
-    // Draw new column on the right edge
+    // Draw spectrogram column
     for (let y = 0; y < height; y++) {
-      const bin = Math.floor(((height - 1 - y) / height) * data.length);
-      const intensity = data[bin] / 255;
+      const bin = Math.floor(((height - 1 - y) / height) * freqData.length);
+      const intensity = freqData[bin] / 255;
       const px = y * 4;
       if (intensity < 0.33) {
         const t = intensity / 0.33;
@@ -60,8 +64,23 @@ function draw() {
       }
       col.data[px + 3] = 255;
     }
-    ctx.putImageData(col, width - 1, 0);
 
+    // Pitch detection — draw orange line at detected pitch, opacity = clarity
+    analyser.getFloatTimeDomainData(timeData);
+    const [pitch, clarity] = detector.findPitch(timeData, sampleRate);
+    const maxFreq = sampleRate / 2;
+    if (pitch > 0 && pitch < maxFreq) {
+      const pitchY = Math.round(height - 1 - (pitch / maxFreq) * height);
+      if (pitchY >= 0 && pitchY < height) {
+        const px = pitchY * 4;
+        col.data[px] = 255;
+        col.data[px + 1] = 165;
+        col.data[px + 2] = 0;
+        col.data[px + 3] = Math.floor(clarity * 255);
+      }
+    }
+
+    ctx2d.putImageData(col, width - 1, 0);
     rafId = requestAnimationFrame(loop);
   };
   loop();
