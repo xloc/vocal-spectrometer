@@ -20,6 +20,24 @@ onMounted(() => {
 });
 onUnmounted(() => window.removeEventListener("resize", resize));
 
+const MIN_FREQ = 20;
+
+// Map frequency to y-position (log scale, low freq at bottom)
+function freqToY(freq: number, maxFreq: number, height: number) {
+  const logMin = Math.log(MIN_FREQ);
+  const logMax = Math.log(maxFreq);
+  const t = (Math.log(Math.max(freq, MIN_FREQ)) - logMin) / (logMax - logMin);
+  return Math.round(height - 1 - t * (height - 1));
+}
+
+// Map y-position to frequency (inverse of freqToY)
+function yToFreq(y: number, maxFreq: number, height: number) {
+  const logMin = Math.log(MIN_FREQ);
+  const logMax = Math.log(maxFreq);
+  const t = (height - 1 - y) / (height - 1);
+  return Math.exp(logMin + t * (logMax - logMin));
+}
+
 function draw() {
   const analyser = audio.getAnalyser();
   const sampleRate = audio.getSampleRate();
@@ -30,6 +48,8 @@ function draw() {
   const freqData = new Uint8Array(analyser.frequencyBinCount);
   const timeData = new Float32Array(analyser.fftSize);
   const detector = PitchDetector.forFloat32Array(analyser.fftSize);
+  const maxFreq = sampleRate / 2;
+  const binWidth = maxFreq / freqData.length;
 
   const loop = () => {
     const { width, height } = el;
@@ -41,9 +61,10 @@ function draw() {
     const img = ctx2d.getImageData(1, 0, width - 1, height);
     ctx2d.putImageData(img, 0, 0);
 
-    // Draw spectrogram column
+    // Draw spectrogram column (log scale)
     for (let y = 0; y < height; y++) {
-      const bin = Math.floor(((height - 1 - y) / height) * freqData.length);
+      const freq = yToFreq(y, maxFreq, height);
+      const bin = Math.min(Math.floor(freq / binWidth), freqData.length - 1);
       const intensity = freqData[bin] / 255;
       const px = y * 4;
       if (intensity < 0.33) {
@@ -68,9 +89,8 @@ function draw() {
     // Pitch detection — draw orange line at detected pitch, opacity = clarity
     analyser.getFloatTimeDomainData(timeData);
     const [pitch, clarity] = detector.findPitch(timeData, sampleRate);
-    const maxFreq = sampleRate / 2;
-    if (pitch > 0 && pitch < maxFreq) {
-      const pitchY = Math.round(height - 1 - (pitch / maxFreq) * height);
+    if (pitch >= MIN_FREQ && pitch < maxFreq) {
+      const pitchY = freqToY(pitch, maxFreq, height);
       if (pitchY >= 0 && pitchY < height) {
         const px = pitchY * 4;
         col.data[px] = 255;
