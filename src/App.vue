@@ -5,6 +5,7 @@ import { useAudioStore } from "./stores/audio";
 
 const audio = useAudioStore();
 const canvas = ref<HTMLCanvasElement>();
+const showSpectrogram = ref(true);
 let rafId = 0;
 
 function resize() {
@@ -62,28 +63,30 @@ function draw() {
     ctx2d.putImageData(img, 0, 0);
 
     // Draw spectrogram column (log scale)
-    for (let y = 0; y < height; y++) {
-      const freq = yToFreq(y, maxFreq, height);
-      const bin = Math.min(Math.floor(freq / binWidth), freqData.length - 1);
-      const intensity = freqData[bin] / 255;
-      const px = y * 4;
-      if (intensity < 0.33) {
-        const t = intensity / 0.33;
-        col.data[px] = 0;
-        col.data[px + 1] = 0;
-        col.data[px + 2] = Math.floor(t * 255);
-      } else if (intensity < 0.66) {
-        const t = (intensity - 0.33) / 0.33;
-        col.data[px] = Math.floor(t * 255);
-        col.data[px + 1] = Math.floor(t * 255);
-        col.data[px + 2] = 255;
-      } else {
-        const t = (intensity - 0.66) / 0.34;
-        col.data[px] = 255;
-        col.data[px + 1] = 255;
-        col.data[px + 2] = Math.floor(255 - t * 128);
+    if (showSpectrogram.value) {
+      for (let y = 0; y < height; y++) {
+        const freq = yToFreq(y, maxFreq, height);
+        const bin = Math.min(Math.floor(freq / binWidth), freqData.length - 1);
+        const intensity = freqData[bin] / 255;
+        const px = y * 4;
+        if (intensity < 0.33) {
+          const t = intensity / 0.33;
+          col.data[px] = 0;
+          col.data[px + 1] = 0;
+          col.data[px + 2] = Math.floor(t * 255);
+        } else if (intensity < 0.66) {
+          const t = (intensity - 0.33) / 0.33;
+          col.data[px] = Math.floor(t * 255);
+          col.data[px + 1] = Math.floor(t * 255);
+          col.data[px + 2] = 255;
+        } else {
+          const t = (intensity - 0.66) / 0.34;
+          col.data[px] = 255;
+          col.data[px + 1] = 255;
+          col.data[px + 2] = Math.floor(255 - t * 128);
+        }
+        col.data[px + 3] = 255;
       }
-      col.data[px + 3] = 255;
     }
 
     // Pitch detection — draw orange line at detected pitch, opacity = clarity
@@ -120,10 +123,15 @@ watch(
 
 <template>
   <canvas ref="canvas" class="fixed inset-0"></canvas>
-  <header class="fixed top-0 right-0  ">
+  <header class="fixed top-0 right-0 flex">
+    <label class="m-4 z-10 text-stone-800 text-lg flex items-center gap-2 bg-stone-200 rounded-lg px-4 py-2">
+      <input type="checkbox" v-model="showSpectrogram" />
+      Spectrogram
+    </label>
     <button @click="audio.running ? audio.stop() : audio.start()"
       class="rounded-lg m-4 z-10 py-2 px-4 bg-stone-200 text-stone-800 text-lg font-semibold">
       {{ audio.running ? "Stop" : "Start" }}
     </button>
+
   </header>
 </template>
