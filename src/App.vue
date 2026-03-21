@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { PitchDetector } from "pitchy";
 import { useAudioStore } from "./stores/audio";
 
 const audio = useAudioStore();
 const canvas = ref<HTMLCanvasElement>();
 const showSpectrogram = ref(true);
+const viewportHeight = ref(window.innerHeight);
 let rafId = 0;
 
 function resize() {
@@ -13,7 +14,26 @@ function resize() {
   if (!el) return;
   el.width = window.innerWidth;
   el.height = window.innerHeight;
+  viewportHeight.value = window.innerHeight;
 }
+
+// Piano roll overlay — natural notes (white keys) from A0 to C8
+const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+const pianoNotes = computed(() => {
+  const maxFreq = audio.getSampleRate() / 2 || 24000;
+  const height = viewportHeight.value;
+  const notes: { name: string; y: number }[] = [];
+  for (let midi = 21; midi <= 131; midi++) {
+    const noteIndex = midi % 12;
+    if (NOTE_NAMES[noteIndex].includes("#")) continue;
+    const freq = 27.5 * Math.pow(2, (midi - 21) / 12);
+    if (freq < MIN_FREQ || freq > maxFreq) continue;
+    const octave = Math.floor((midi - 12) / 12);
+    const y = freqToY(freq, maxFreq, height);
+    if (y >= 0 && y < height) notes.push({ name: NOTE_NAMES[noteIndex] + octave, y });
+  }
+  return notes;
+});
 
 onMounted(() => {
   resize();
@@ -79,8 +99,8 @@ function draw() {
         // Crossfade between lo and hi analysers over the transition band
         const blend =
           freq <= CROSSOVER_LO ? 0
-          : freq >= CROSSOVER_HI ? 1
-          : (freq - CROSSOVER_LO) / (CROSSOVER_HI - CROSSOVER_LO);
+            : freq >= CROSSOVER_HI ? 1
+              : (freq - CROSSOVER_LO) / (CROSSOVER_HI - CROSSOVER_LO);
         const intensity = valueLo * (1 - blend) + valueHi * blend;
         const px = y * 4;
         if (intensity < 0.33) {
@@ -108,12 +128,16 @@ function draw() {
     const [pitch, clarity] = detector.findPitch(timeData, sampleRate);
     if (pitch >= MIN_FREQ && pitch < maxFreq) {
       const pitchY = freqToY(pitch, maxFreq, height);
-      if (pitchY >= 0 && pitchY < height) {
-        const px = pitchY * 4;
-        col.data[px] = 255;
-        col.data[px + 1] = 165;
-        col.data[px + 2] = 0;
-        col.data[px + 3] = Math.floor(clarity * 255);
+      const alpha = Math.floor(clarity * 255);
+      for (let dy = -1; dy <= 1; dy++) {
+        const y = pitchY + dy;
+        if (y >= 0 && y < height) {
+          const px = y * 4;
+          col.data[px] = 255;
+          col.data[px + 1] = 165;
+          col.data[px + 2] = 0;
+          col.data[px + 3] = alpha;
+        }
       }
     }
 
@@ -137,6 +161,17 @@ watch(
 
 <template>
   <canvas ref="canvas" class="fixed inset-0"></canvas>
+  <div class="fixed inset-0">
+    <div v-for="note in pianoNotes" :key="note.name"
+      :style="{ position: 'absolute', top: note.y + 'px', left: 0, right: 0, display: 'flex', alignItems: 'center', transform: 'translateY(-50%)' }">
+      <span class="text-stone-500 font-mono" style="font-size: 11px; padding: 0 4px; flex-shrink: 0;">{{ note.name
+      }}</span>
+      <span class="flex-1 border-t"
+        :class="[note.name.startsWith('C') ? 'border-stone-200/50' : 'border-stone-500/50']"></span>
+      <span class="text-stone-500 font-mono" style="font-size: 11px; padding: 0 4px; flex-shrink: 0;">{{ note.name
+      }}</span>
+    </div>
+  </div>
   <header class="fixed top-0 right-0 flex">
     <label class="m-4 z-10 text-stone-800 text-lg flex items-center gap-2 bg-stone-200 rounded-lg px-4 py-2">
       <input type="checkbox" v-model="showSpectrogram" />
