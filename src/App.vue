@@ -39,35 +39,49 @@ function yToFreq(y: number, maxFreq: number, height: number) {
   return Math.exp(logMin + t * (logMax - logMin));
 }
 
+const CROSSOVER_LO = 400;
+const CROSSOVER_HI = 600;
+
 function draw() {
-  const analyser = audio.getAnalyser();
+  const analysers = audio.getAnalysers();
   const sampleRate = audio.getSampleRate();
   const el = canvas.value;
-  if (!analyser || !el || !sampleRate) return;
+  if (!analysers || !el || !sampleRate) return;
 
   const ctx2d = el.getContext("2d")!;
-  const freqData = new Uint8Array(analyser.frequencyBinCount);
-  const timeData = new Float32Array(analyser.fftSize);
-  const detector = PitchDetector.forFloat32Array(analyser.fftSize);
+  const freqDataLo = new Uint8Array(analysers.lo.frequencyBinCount);
+  const freqDataHi = new Uint8Array(analysers.hi.frequencyBinCount);
+  const timeData = new Float32Array(analysers.lo.fftSize);
+  const detector = PitchDetector.forFloat32Array(analysers.lo.fftSize);
   const maxFreq = sampleRate / 2;
-  const binWidth = maxFreq / freqData.length;
+  const binWidthLo = maxFreq / freqDataLo.length;
+  const binWidthHi = maxFreq / freqDataHi.length;
 
   const loop = () => {
     const { width, height } = el;
     const col = ctx2d.createImageData(1, height);
 
-    analyser.getByteFrequencyData(freqData);
+    analysers.lo.getByteFrequencyData(freqDataLo);
+    analysers.hi.getByteFrequencyData(freqDataHi);
 
     // Shift existing image left by 1px
     const img = ctx2d.getImageData(1, 0, width - 1, height);
     ctx2d.putImageData(img, 0, 0);
 
-    // Draw spectrogram column (log scale)
+    // Draw spectrogram column (log scale, dual-resolution)
     if (showSpectrogram.value) {
       for (let y = 0; y < height; y++) {
         const freq = yToFreq(y, maxFreq, height);
-        const bin = Math.min(Math.floor(freq / binWidth), freqData.length - 1);
-        const intensity = freqData[bin] / 255;
+        const binLo = Math.min(Math.floor(freq / binWidthLo), freqDataLo.length - 1);
+        const binHi = Math.min(Math.floor(freq / binWidthHi), freqDataHi.length - 1);
+        const valueLo = freqDataLo[binLo] / 255;
+        const valueHi = freqDataHi[binHi] / 255;
+        // Crossfade between lo and hi analysers over the transition band
+        const blend =
+          freq <= CROSSOVER_LO ? 0
+          : freq >= CROSSOVER_HI ? 1
+          : (freq - CROSSOVER_LO) / (CROSSOVER_HI - CROSSOVER_LO);
+        const intensity = valueLo * (1 - blend) + valueHi * blend;
         const px = y * 4;
         if (intensity < 0.33) {
           const t = intensity / 0.33;
@@ -90,7 +104,7 @@ function draw() {
     }
 
     // Pitch detection — draw orange line at detected pitch, opacity = clarity
-    analyser.getFloatTimeDomainData(timeData);
+    analysers.lo.getFloatTimeDomainData(timeData);
     const [pitch, clarity] = detector.findPitch(timeData, sampleRate);
     if (pitch >= MIN_FREQ && pitch < maxFreq) {
       const pitchY = freqToY(pitch, maxFreq, height);

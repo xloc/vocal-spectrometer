@@ -5,11 +5,12 @@ export const useAudioStore = defineStore("audio", () => {
   const running = ref(false);
 
   let ctx: AudioContext | null = null;
-  let analyser: AnalyserNode | null = null;
+  let analyserLo: AnalyserNode | null = null;
+  let analyserHi: AnalyserNode | null = null;
   let stream: MediaStream | null = null;
 
-  function getAnalyser() {
-    return analyser;
+  function getAnalysers() {
+    return analyserLo && analyserHi ? { lo: analyserLo, hi: analyserHi } : null;
   }
 
   function getSampleRate() {
@@ -19,9 +20,16 @@ export const useAudioStore = defineStore("audio", () => {
   async function start() {
     stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     ctx = new AudioContext();
-    analyser = ctx.createAnalyser();
-    analyser.fftSize = 2048;
-    ctx.createMediaStreamSource(stream).connect(analyser);
+    const source = ctx.createMediaStreamSource(stream);
+
+    analyserLo = ctx.createAnalyser();
+    analyserLo.fftSize = 8192;
+    source.connect(analyserLo);
+
+    analyserHi = ctx.createAnalyser();
+    analyserHi.fftSize = 2048;
+    source.connect(analyserHi);
+
     running.value = true;
   }
 
@@ -30,9 +38,10 @@ export const useAudioStore = defineStore("audio", () => {
     ctx?.close();
     stream = null;
     ctx = null;
-    analyser = null;
+    analyserLo = null;
+    analyserHi = null;
     running.value = false;
   }
 
-  return { running, getAnalyser, getSampleRate, start, stop };
+  return { running, getAnalysers, getSampleRate, start, stop };
 });
