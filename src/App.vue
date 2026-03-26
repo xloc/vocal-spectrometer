@@ -88,22 +88,31 @@ const ZOOM_COOLDOWN = 200;
 
 function onWheel(e: WheelEvent) {
   e.preventDefault();
-  const now = performance.now();
-  if (now - lastZoomTime < ZOOM_COOLDOWN) return;
-  lastZoomTime = now;
   follow.value = false;
   const height = canvas.value?.height ?? window.innerHeight;
-  const anchorFreq = yToFreq(e.offsetY, height);
-  const currentOctaves = Math.round(Math.log2(viewMaxFreq.value / viewMinFreq.value));
-  const direction = e.deltaY > 0 ? 1 : -1;
-  const newOctaves = Math.max(1, currentOctaves + direction);
-  if (newOctaves === currentOctaves) return;
-  // Keep anchor at same relative position in view
-  const t = (height - 1 - e.offsetY) / (height - 1); // 0=top, 1=bottom
-  const newLogRange = newOctaves * Math.LN2;
-  const logAnchor = Math.log(anchorFreq);
-  viewMinFreq.value = Math.exp(logAnchor - t * newLogRange);
-  viewMaxFreq.value = Math.exp(logAnchor + (1 - t) * newLogRange);
+
+  if (e.metaKey || e.ctrlKey) {
+    // Cmd/Ctrl + scroll: zoom
+    const now = performance.now();
+    if (now - lastZoomTime < ZOOM_COOLDOWN) return;
+    lastZoomTime = now;
+    const anchorFreq = yToFreq(e.offsetY, height);
+    const currentOctaves = Math.round(Math.log2(viewMaxFreq.value / viewMinFreq.value));
+    const direction = e.deltaY > 0 ? 1 : -1;
+    const newOctaves = Math.max(1, currentOctaves + direction);
+    if (newOctaves === currentOctaves) return;
+    const t = (height - 1 - e.offsetY) / (height - 1);
+    const newLogRange = newOctaves * Math.LN2;
+    const logAnchor = Math.log(anchorFreq);
+    viewMinFreq.value = Math.exp(logAnchor - t * newLogRange);
+    viewMaxFreq.value = Math.exp(logAnchor + (1 - t) * newLogRange);
+  } else {
+    // Normal scroll: pan up/down
+    const logRange = Math.log(viewMaxFreq.value) - Math.log(viewMinFreq.value);
+    const logShift = (-e.deltaY / (height - 1)) * logRange;
+    viewMinFreq.value = Math.exp(Math.log(viewMinFreq.value) + logShift);
+    viewMaxFreq.value = Math.exp(Math.log(viewMaxFreq.value) + logShift);
+  }
   clampView();
 }
 
