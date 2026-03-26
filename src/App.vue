@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { useLocalStorage } from "@vueuse/core";
 import { PitchDetector } from "pitchy";
 import { useAudioStore } from "./stores/audio";
 import { ViewfinderCircleIcon, SignalIcon, MicrophoneIcon, StopIcon } from "@heroicons/vue/24/solid";
 
 const audio = useAudioStore();
 const canvas = ref<HTMLCanvasElement>();
-const showSpectrogram = ref(true);
-const follow = ref(false);
+const showSpectrogram = useLocalStorage("showSpectrogram", true);
+const follow = useLocalStorage("follow", false);
 const viewportHeight = ref(window.innerHeight);
 let rafId = 0;
 

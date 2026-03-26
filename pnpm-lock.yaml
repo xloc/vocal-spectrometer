@@ -14,6 +14,9 @@ importers:
       '@tailwindcss/vite':
         specifier: ^4.2.2
         version: 4.2.2(vite@8.0.1(@types/node@24.12.0)(jiti@2.6.1))
+      '@vueuse/core':
+        specifier: ^14.2.1
+        version: 14.2.1(vue@3.5.30(typescript@5.9.3))
       pinia:
         specifier: ^3.0.4
         version: 3.0.4(typescript@5.9.3)(vue@3.5.30(typescript@5.9.3))
@@ -292,6 +295,9 @@ packages:
   '@types/node@24.12.0':
     resolution: {integrity: sha512-GYDxsZi3ChgmckRT9HPU0WEhKLP08ev/Yfcq2AstjrDASOYCSXeyjDsHg4v5t4jOj7cyDX3vmprafKlWIG9MXQ==}
 
+  '@types/web-bluetooth@0.0.21':
+    resolution: {integrity: sha512-oIQLCGWtcFZy2JW77j9k8nHzAOpqMHLQejDA48XXMWH6tjCQHz5RCFz1bzsmROyL6PUm+LLnUiI4BCn221inxA==}
+
   '@vitejs/plugin-vue@6.0.5':
     resolution: {integrity: sha512-bL3AxKuQySfk1iGcBsQnoRVexTPJq0Z/ixFVM8OhVJAP6ZXXXLtM7NFKWhLl30Kg7uTBqIaPXbh+nuQCuBDedg==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -359,6 +365,19 @@ packages:
         optional: true
       vue:
         optional: true
+
+  '@vueuse/core@14.2.1':
+    resolution: {integrity: sha512-3vwDzV+GDUNpdegRY6kzpLm4Igptq+GA0QkJ3W61Iv27YWwW/ufSlOfgQIpN6FZRMG0mkaz4gglJRtq5SeJyIQ==}
+    peerDependencies:
+      vue: ^3.5.0
+
+  '@vueuse/metadata@14.2.1':
+    resolution: {integrity: sha512-1ButlVtj5Sb/HDtIy1HFr1VqCP4G6Ypqt5MAo0lCgjokrk2mvQKsK2uuy0vqu/Ks+sHfuHo0B9Y9jn9xKdjZsw==}
+
+  '@vueuse/shared@14.2.1':
+    resolution: {integrity: sha512-shTJncjV9JTI4oVNyF1FQonetYAiTBd+Qj7cY89SWbXSkx7gyhrgtEdF2ZAVWS1S3SHlaROO6F2IesJxQEkZBw==}
+    peerDependencies:
+      vue: ^3.5.0
 
   alien-signals@3.1.2:
     resolution: {integrity: sha512-d9dYqZTS90WLiU0I5c6DHj/HcKkF8ZyGN3G5x8wSbslulz70KOxaqCT0hQCo9KOyhVqzqGojvNdJXoTumZOtcw==}
@@ -825,6 +844,8 @@ snapshots:
     dependencies:
       undici-types: 7.16.0
 
+  '@types/web-bluetooth@0.0.21': {}
+
   '@vitejs/plugin-vue@6.0.5(vite@8.0.1(@types/node@24.12.0)(jiti@2.6.1))(vue@3.5.30(typescript@5.9.3))':
     dependencies:
       '@rolldown/pluginutils': 1.0.0-rc.2
@@ -928,6 +949,19 @@ snapshots:
   '@vue/tsconfig@0.9.0(typescript@5.9.3)(vue@3.5.30(typescript@5.9.3))':
     optionalDependencies:
       typescript: 5.9.3
+      vue: 3.5.30(typescript@5.9.3)
+
+  '@vueuse/core@14.2.1(vue@3.5.30(typescript@5.9.3))':
+    dependencies:
+      '@types/web-bluetooth': 0.0.21
+      '@vueuse/metadata': 14.2.1
+      '@vueuse/shared': 14.2.1(vue@3.5.30(typescript@5.9.3))
+      vue: 3.5.30(typescript@5.9.3)
+
+  '@vueuse/metadata@14.2.1': {}
+
+  '@vueuse/shared@14.2.1(vue@3.5.30(typescript@5.9.3))':
+    dependencies:
       vue: 3.5.30(typescript@5.9.3)
 
   alien-signals@3.1.2: {}
