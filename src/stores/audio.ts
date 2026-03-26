@@ -8,18 +8,20 @@ export const useAudioStore = defineStore("audio", () => {
   let analyserLo: AnalyserNode | null = null;
   let analyserHi: AnalyserNode | null = null;
   let stream: MediaStream | null = null;
+  let sampleRate = 0;
 
   function getAnalysers() {
     return analyserLo && analyserHi ? { lo: analyserLo, hi: analyserHi } : null;
   }
 
   function getSampleRate() {
-    return ctx?.sampleRate ?? 0;
+    return sampleRate;
   }
 
   async function start() {
     stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     ctx = new AudioContext();
+    sampleRate = ctx.sampleRate;
     const source = ctx.createMediaStreamSource(stream);
 
     analyserLo = ctx.createAnalyser();
