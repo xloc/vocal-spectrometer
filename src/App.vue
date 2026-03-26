@@ -44,6 +44,13 @@ const pianoNotes = computed(() => {
   }
   return notes;
 });
+const tightLayout = computed(() => {
+  const notes = pianoNotes.value;
+  if (notes.length < 2) return false;
+  const totalSpan = Math.abs(notes[notes.length - 1].y - notes[0].y);
+  return totalSpan / (notes.length - 1) < 16;
+});
+const noteStartsWith = (name: string, ...prefixes: string[]) => prefixes.some(p => name.startsWith(p));
 
 onMounted(() => {
   resize();
@@ -317,13 +324,17 @@ watch([viewMinFreq, viewMaxFreq], () => {
   <canvas ref="canvas" class="fixed inset-0" @wheel.prevent="onWheel" @pointerdown="onPointerDown"
     @pointermove="onPointerMove" @pointerup="onPointerUp"></canvas>
   <div class="fixed inset-0 pointer-events-none">
-    <div v-for="note in pianoNotes" :key="note.name"
-      :style="{ position: 'absolute', top: note.y + 'px', left: 0, right: 0, display: 'flex', alignItems: 'center', transform: 'translateY(-50%)' }">
-      <span class="text-stone-500 font-mono" style="font-size: 11px; padding: 0 4px; flex-shrink: 0;">{{ note.name
+    <div v-for="note in pianoNotes" :key="note.name" class="absolute inset-x-0 flex items-center -translate-y-1/2"
+      :style="{ top: note.y + 'px' }">
+      <span class="font-mono text-[11px] px-1 shrink-0"
+        :class="!tightLayout || noteStartsWith(note.name, 'C') ? 'text-stone-500' : 'text-transparent'">{{
+          note.name
         }}</span>
       <span class="flex-1 border-t"
         :class="[note.name.startsWith('C') ? 'border-stone-200/50' : 'border-stone-500/50']"></span>
-      <span class="text-stone-500 font-mono" style="font-size: 11px; padding: 0 4px; flex-shrink: 0;">{{ note.name
+      <span class="font-mono text-[11px] px-1 shrink-0"
+        :class="!tightLayout || noteStartsWith(note.name, 'C') ? 'text-stone-500' : 'text-transparent'">{{
+          note.name
         }}</span>
     </div>
   </div>
@@ -332,8 +343,9 @@ watch([viewMinFreq, viewMaxFreq], () => {
       class="rounded-lg p-2" :class="follow ? 'bg-stone-800 text-stone-200' : 'bg-stone-200 text-stone-800'">
       <ViewfinderCircleIcon class="size-6" />
     </button>
-    <button @click="showSpectrogram = !showSpectrogram" :aria-pressed="showSpectrogram" :title="showSpectrogram ? 'Hide spectrogram' : 'Show spectrogram'"
-      class="rounded-lg p-2" :class="showSpectrogram ? 'bg-stone-800 text-stone-200' : 'bg-stone-200 text-stone-800'">
+    <button @click="showSpectrogram = !showSpectrogram" :aria-pressed="showSpectrogram"
+      :title="showSpectrogram ? 'Hide spectrogram' : 'Show spectrogram'" class="rounded-lg p-2"
+      :class="showSpectrogram ? 'bg-stone-800 text-stone-200' : 'bg-stone-200 text-stone-800'">
       <SignalIcon class="size-6" />
     </button>
     <button @click="audio.running ? audio.stop() : audio.start()" :title="audio.running ? 'Stop' : 'Start'"
