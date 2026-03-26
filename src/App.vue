@@ -14,8 +14,8 @@ let rafId = 0;
 
 const ABS_MIN = 20;
 // Default view: 2 octaves centered on vocal range (C3–C5)
-const viewMinFreq = ref(130.81); // C3
-const viewMaxFreq = ref(523.25); // C5
+const viewMinFreq = useLocalStorage("viewMinFreq", 130.81); // C3
+const viewMaxFreq = useLocalStorage("viewMaxFreq", 523.25); // C5
 
 function resize() {
   const el = canvas.value;
