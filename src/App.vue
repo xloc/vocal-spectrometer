@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { PitchDetector } from "pitchy";
 import { useAudioStore } from "./stores/audio";
+import { ViewfinderCircleIcon, SignalIcon, MicrophoneIcon, StopIcon } from "@heroicons/vue/24/solid";
 
 const audio = useAudioStore();
 const canvas = ref<HTMLCanvasElement>();
@@ -316,19 +317,18 @@ watch([viewMinFreq, viewMaxFreq], () => {
         }}</span>
     </div>
   </div>
-  <header class="fixed top-0 right-0 flex">
-    <label class="m-4 z-10 text-stone-800 text-lg flex items-center gap-2 bg-stone-200 rounded-lg px-4 py-2">
-      <input type="checkbox" v-model="follow" />
-      Follow
-    </label>
-    <label class="m-4 z-10 text-stone-800 text-lg flex items-center gap-2 bg-stone-200 rounded-lg px-4 py-2">
-      <input type="checkbox" v-model="showSpectrogram" />
-      Spectrogram
-    </label>
-    <button @click="audio.running ? audio.stop() : audio.start()"
-      class="rounded-lg m-4 z-10 py-2 px-4 bg-stone-200 text-stone-800 text-lg font-semibold">
-      {{ audio.running ? "Stop" : "Start" }}
+  <header class="fixed top-0 right-0 flex gap-2 p-4 z-10">
+    <button @click="follow = !follow" :aria-pressed="follow" :title="follow ? 'Following pitch' : 'Follow pitch'"
+      class="rounded-lg p-2" :class="follow ? 'bg-stone-800 text-stone-200' : 'bg-stone-200 text-stone-800'">
+      <ViewfinderCircleIcon class="size-6" />
     </button>
-
+    <button @click="showSpectrogram = !showSpectrogram" :aria-pressed="showSpectrogram" :title="showSpectrogram ? 'Hide spectrogram' : 'Show spectrogram'"
+      class="rounded-lg p-2" :class="showSpectrogram ? 'bg-stone-800 text-stone-200' : 'bg-stone-200 text-stone-800'">
+      <SignalIcon class="size-6" />
+    </button>
+    <button @click="audio.running ? audio.stop() : audio.start()" :title="audio.running ? 'Stop' : 'Start'"
+      class="rounded-lg p-2" :class="audio.running ? 'bg-red-600 text-white' : 'bg-stone-200 text-stone-800'">
+      <component :is="audio.running ? StopIcon : MicrophoneIcon" class="size-6" />
+    </button>
   </header>
 </template>
