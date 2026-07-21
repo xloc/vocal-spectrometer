@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useLocalStorage } from "@vueuse/core";
 import { PitchDetector } from "pitchy";
 import { useAudioStore } from "./stores/audio";
-import { ViewfinderCircleIcon, SignalIcon, MicrophoneIcon, StopIcon, MusicalNoteIcon, ChatBubbleLeftIcon, ChatBubbleBottomCenterTextIcon, Bars4Icon, EyeIcon } from "@heroicons/vue/24/solid";
+import { MicrophoneIcon, StopIcon, ChatBubbleBottomCenterTextIcon, Bars4Icon, EyeIcon } from "@heroicons/vue/24/solid";
 
 const audio = useAudioStore();
 const canvas = ref<HTMLCanvasElement>();
