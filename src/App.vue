@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useLocalStorage } from "@vueuse/core";
 import { PitchDetector } from "pitchy";
 import { useAudioStore } from "./stores/audio";
-import { ViewfinderCircleIcon, SignalIcon, MicrophoneIcon, StopIcon } from "@heroicons/vue/24/solid";
+import { ViewfinderCircleIcon, SignalIcon, MicrophoneIcon, StopIcon, MusicalNoteIcon, ChatBubbleLeftIcon, ChatBubbleBottomCenterTextIcon, Bars4Icon, EyeIcon } from "@heroicons/vue/24/solid";
 
 const audio = useAudioStore();
 const canvas = ref<HTMLCanvasElement>();
@@ -51,6 +51,17 @@ const tightLayout = computed(() => {
   return totalSpan / (notes.length - 1) < 16;
 });
 const noteStartsWith = (name: string, ...prefixes: string[]) => prefixes.some(p => name.startsWith(p));
+
+const showPitch = useLocalStorage("showPitch", true);
+const pitchLabel = ref("");
+function freqToNoteName(freq: number) {
+  const midi = 12 * Math.log2(freq / 440) + 69;
+  const rounded = Math.round(midi);
+  const cents = Math.round((midi - rounded) * 10) * 10;
+  const octave = Math.floor((rounded - 12) / 12);
+  const sign = cents >= 0 ? "+" : "";
+  return `${NOTE_NAMES[rounded % 12]}${octave} ${sign}${cents}¢`;
+}
 
 onMounted(() => {
   resize();
@@ -281,6 +292,7 @@ function draw() {
     });
     while (history.length > width) history.shift();
 
+    pitchLabel.value = pitch >= ABS_MIN && clarity > 0.8 ? freqToNoteName(pitch) : "";
     updateFollow(pitch, clarity);
 
     // Full redraw when view changed, otherwise shift + append
@@ -338,15 +350,23 @@ watch([viewMinFreq, viewMaxFreq], () => {
         }}</span>
     </div>
   </div>
+  <div v-if="showPitch && pitchLabel"
+    class="fixed bottom-8 left-1/2 -translate-x-1/2 z-10 bg-stone-900/80 text-white font-mono text-3xl px-6 py-3 rounded-xl">
+    {{ pitchLabel }}
+  </div>
   <header class="fixed top-0 right-0 flex gap-2 p-4 z-10">
     <button @click="follow = !follow" :aria-pressed="follow" :title="follow ? 'Following pitch' : 'Follow pitch'"
       class="rounded-lg p-2" :class="follow ? 'bg-stone-800 text-stone-200' : 'bg-stone-200 text-stone-800'">
-      <ViewfinderCircleIcon class="size-6" />
+      <EyeIcon class="size-6" />
     </button>
     <button @click="showSpectrogram = !showSpectrogram" :aria-pressed="showSpectrogram"
       :title="showSpectrogram ? 'Hide spectrogram' : 'Show spectrogram'" class="rounded-lg p-2"
       :class="showSpectrogram ? 'bg-stone-800 text-stone-200' : 'bg-stone-200 text-stone-800'">
-      <SignalIcon class="size-6" />
+      <Bars4Icon class="size-6" />
+    </button>
+    <button @click="showPitch = !showPitch" :aria-pressed="showPitch" :title="showPitch ? 'Hide pitch' : 'Show pitch'"
+      class="rounded-lg p-2" :class="showPitch ? 'bg-stone-800 text-stone-200' : 'bg-stone-200 text-stone-800'">
+      <ChatBubbleBottomCenterTextIcon class="size-6" />
     </button>
     <button @click="audio.running ? audio.stop() : audio.start()" :title="audio.running ? 'Stop' : 'Start'"
       class="rounded-lg p-2" :class="audio.running ? 'bg-red-600 text-white' : 'bg-stone-200 text-stone-800'">
