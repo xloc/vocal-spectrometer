@@ -1,5 +1,22 @@
-# Vue 3 + TypeScript + Vite
+# Vocal Spectrometer
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+A browser-based, real-time vocal spectrogram and pitch detector.
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+- Visualizes microphone input using a scrolling STFT spectrogram
+  - Time runs horizontally and frequency vertically
+  - Color shows the intensity of each frequency
+- Detects and draws pitch in real time
+- Labels the nearest musical note and cents offset
+- Provides manual navigation and automatic pitch following
+
+[Open the app](https://xloc.github.io/vocal-spectrometer/)
+
+## Development
+
+```sh
+# install node and pnpm
+pnpm install
+pnpm dev
+```
+
+Run `pnpm build` for a production build. Pushes to `main` are automatically deployed to GitHub Pages.
