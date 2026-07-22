@@ -2,10 +2,12 @@
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useLocalStorage } from "@vueuse/core";
 import { PitchDetector } from "pitchy";
+import { useScreenWakeLock } from "./composables/useScreenWakeLock";
 import { useAudioStore } from "./stores/audio";
 import { MicrophoneIcon, StopIcon, ChatBubbleBottomCenterTextIcon, Bars4Icon, EyeIcon } from "@heroicons/vue/24/solid";
 
 const audio = useAudioStore();
+useScreenWakeLock(() => audio.running);
 const canvas = ref<HTMLCanvasElement>();
 const showSpectrogram = useLocalStorage("showSpectrogram", true);
 const follow = useLocalStorage("follow", false);
