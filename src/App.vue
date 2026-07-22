@@ -1,17 +1,19 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, watch } from "vue";
 import { useLocalStorage } from "@vueuse/core";
 import { PitchDetector } from "pitchy";
+import { useCanvasViewport } from "./composables/useCanvasViewport";
+import { usePanPinch } from "./composables/usePanPinch";
 import { useScreenWakeLock } from "./composables/useScreenWakeLock";
 import { useAudioStore } from "./stores/audio";
-import { MicrophoneIcon, StopIcon, ChatBubbleBottomCenterTextIcon, Bars4Icon, EyeIcon } from "@heroicons/vue/24/solid";
+import { MicrophoneIcon, StopIcon, ChatBubbleBottomCenterTextIcon, Bars4Icon, EyeIcon, ArrowPathIcon } from "@heroicons/vue/24/solid";
 
 const audio = useAudioStore();
 useScreenWakeLock(() => audio.running);
 const canvas = ref<HTMLCanvasElement>();
 const showSpectrogram = useLocalStorage("showSpectrogram", true);
 const follow = useLocalStorage("follow", false);
-const viewportHeight = ref(window.innerHeight);
+const { height: viewportHeight } = useCanvasViewport(canvas, redrawHistory);
 let rafId = 0;
 
 const ABS_MIN = 20;
@@ -19,12 +21,11 @@ const ABS_MIN = 20;
 const viewMinFreq = useLocalStorage("viewMinFreq", 130.81); // C3
 const viewMaxFreq = useLocalStorage("viewMaxFreq", 523.25); // C5
 
-function resize() {
-  const el = canvas.value;
-  if (!el) return;
-  el.width = window.innerWidth;
-  el.height = window.innerHeight;
-  viewportHeight.value = window.innerHeight;
+function redrawHistory(el: HTMLCanvasElement) {
+  const sampleRate = audio.getSampleRate();
+  if (history.length && sampleRate) {
+    renderAllColumns(el.getContext("2d")!, el.width, el.height, sampleRate / 2);
+  }
 }
 
 // Piano roll overlay — natural notes (white keys) from A0 to C8
@@ -65,12 +66,6 @@ function freqToNoteName(freq: number) {
   return `${NOTE_NAMES[rounded % 12]}${octave} ${sign}${cents}¢`;
 }
 
-onMounted(() => {
-  resize();
-  window.addEventListener("resize", resize);
-});
-onUnmounted(() => window.removeEventListener("resize", resize));
-
 // Map frequency to y-position (log scale, low freq at bottom)
 function freqToY(freq: number, height: number) {
   const logMin = Math.log(viewMinFreq.value);
@@ -103,6 +98,12 @@ function clampView() {
   viewMaxFreq.value = Math.min(viewMaxFreq.value, nyquist);
 }
 
+function resetView() {
+  follow.value = false;
+  viewMinFreq.value = 130.81;
+  viewMaxFreq.value = 523.25;
+}
+
 // Wheel zoom: discrete octave steps, centered on cursor frequency
 let lastZoomTime = 0;
 const ZOOM_COOLDOWN = 200;
@@ -110,7 +111,7 @@ const ZOOM_COOLDOWN = 200;
 function onWheel(e: WheelEvent) {
   e.preventDefault();
   follow.value = false;
-  const height = canvas.value?.height ?? window.innerHeight;
+  const height = viewportHeight.value;
 
   if (e.metaKey || e.ctrlKey) {
     // Cmd/Ctrl + scroll: zoom
@@ -137,33 +138,42 @@ function onWheel(e: WheelEvent) {
   clampView();
 }
 
-// Vertical drag panning
-let dragging = false;
-let lastDragY = 0;
+let pinchStartLogRange = 0;
+let pinchAnchorFreq = 0;
 
-function onPointerDown(e: PointerEvent) {
-  dragging = true;
-  lastDragY = e.clientY;
-  (e.target as HTMLElement).setPointerCapture(e.pointerId);
+function startPinch(centerY: number) {
+  pinchStartLogRange = Math.log(viewMaxFreq.value / viewMinFreq.value);
+  pinchAnchorFreq = yToFreq(centerY, viewportHeight.value);
 }
 
-function onPointerMove(e: PointerEvent) {
-  if (!dragging) return;
+function pan(deltaY: number) {
   follow.value = false;
-  const height = canvas.value?.height ?? window.innerHeight;
-  const dy = e.clientY - lastDragY;
-  lastDragY = e.clientY;
+  const height = viewportHeight.value;
   // Convert pixel delta to log-frequency shift
   const logRange = Math.log(viewMaxFreq.value) - Math.log(viewMinFreq.value);
-  const logShift = (dy / (height - 1)) * logRange;
+  const logShift = (deltaY / (height - 1)) * logRange;
   viewMinFreq.value = Math.exp(Math.log(viewMinFreq.value) + logShift);
   viewMaxFreq.value = Math.exp(Math.log(viewMaxFreq.value) + logShift);
   clampView();
 }
 
-function onPointerUp() {
-  dragging = false;
+function pinch(scale: number, centerY: number) {
+  follow.value = false;
+  const height = viewportHeight.value;
+  const t = (height - 1 - centerY) / (height - 1);
+  const maxLogRange = Math.log(((audio.getSampleRate() || 48000) / 2) / ABS_MIN);
+  const newLogRange = Math.min(maxLogRange, Math.max(Math.LN2, pinchStartLogRange / scale));
+  const logAnchor = Math.log(pinchAnchorFreq);
+  viewMinFreq.value = Math.exp(logAnchor - t * newLogRange);
+  viewMaxFreq.value = Math.exp(logAnchor + (1 - t) * newLogRange);
+  clampView();
 }
+
+const panPinchListeners = usePanPinch({
+  onPan: pan,
+  onPinchStart: startPinch,
+  onPinch: pinch,
+});
 
 // ── Spectrogram rendering ──
 
@@ -335,8 +345,8 @@ watch([viewMinFreq, viewMaxFreq], () => {
 </script>
 
 <template>
-  <canvas ref="canvas" class="fixed inset-0" @wheel.prevent="onWheel" @pointerdown="onPointerDown"
-    @pointermove="onPointerMove" @pointerup="onPointerUp"></canvas>
+  <canvas ref="canvas" v-on="panPinchListeners" class="spectrogram-canvas fixed left-0 top-0"
+    @wheel.prevent="onWheel"></canvas>
   <div class="fixed inset-0 pointer-events-none">
     <div v-for="note in pianoNotes" :key="note.name" class="absolute inset-x-0 flex items-center -translate-y-1/2"
       :style="{ top: note.y + 'px' }">
@@ -353,10 +363,14 @@ watch([viewMinFreq, viewMaxFreq], () => {
     </div>
   </div>
   <div v-if="showPitch && pitchLabel"
-    class="fixed bottom-8 left-1/2 -translate-x-1/2 z-10 bg-stone-900/80 text-white font-mono text-3xl px-6 py-3 rounded-xl">
+    class="pitch-label fixed left-1/2 -translate-x-1/2 mb-8 z-10 bg-stone-900/80 text-white font-mono text-3xl px-6 py-3 rounded-xl">
     {{ pitchLabel }}
   </div>
-  <header class="fixed top-0 right-0 flex gap-2 p-4 z-10">
+  <header class="controls fixed flex gap-2 p-4 z-10">
+    <button @click="resetView" title="Reset frequency range" aria-label="Reset frequency range"
+      class="rounded-lg p-2 bg-stone-200 text-stone-800">
+      <ArrowPathIcon class="size-6" />
+    </button>
     <button @click="follow = !follow" :aria-pressed="follow" :title="follow ? 'Following pitch' : 'Follow pitch'"
       class="rounded-lg p-2" :class="follow ? 'bg-stone-800 text-stone-200' : 'bg-stone-200 text-stone-800'">
       <EyeIcon class="size-6" />
